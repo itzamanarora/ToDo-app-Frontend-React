@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { AlertCircle } from "lucide-react";
 import { Header } from "../component/Header";
-import { BaseUrlField } from "../component/BaseUrlField";
 import { AuthForm } from "../component/AuthForm";
 import { TaskList } from "../component/TaskList";
+import { Toast } from "../component/Toast";
 import {
   DEFAULT_BASE_URL,
   TOKEN_STORAGE_KEY,
@@ -16,13 +16,26 @@ import {
 } from "../utility/utils";
 
 export default function TodoPage() {
-  const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL);
+  const [baseUrl] = useState(DEFAULT_BASE_URL);
   const [tokens, setTokens] = useState(() => loadStoredTokens()); // { accessToken, refreshToken }
-  const [screen, setScreen] = useState(() =>
-    loadStoredTokens()?.accessToken ? "tasks" : "signin"
-  ); // signin | signup | tasks
+  
+  // Read current path or default
+  const [currentPath, setCurrentPath] = useState(() =>
+    typeof window !== "undefined" ? window.location.pathname : "/"
+  );
+
+  const [screen, setScreen] = useState(() => {
+    const hasToken = !!loadStoredTokens()?.accessToken;
+    if (hasToken) return "tasks";
+    if (typeof window !== "undefined" && window.location.pathname === "/signup") {
+      return "signup";
+    }
+    return "signin";
+  }); // signin | signup | tasks
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   // auth form fields
   const [username, setUsername] = useState("");
@@ -36,13 +49,40 @@ export default function TodoPage() {
   const [newPriority, setNewPriority] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
-  const [newCompletedAt, setNewCompletedAt] = useState("");
   const [showComposer, setShowComposer] = useState(false);
+
+  // Router sync
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      setCurrentPath(path);
+      if (tokens?.accessToken) {
+        setScreen("tasks");
+      } else if (path === "/signup") {
+        setScreen("signup");
+      } else {
+        setScreen("signin");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [tokens]);
+
+  const navigateTo = (newScreen, path) => {
+    setScreen(newScreen);
+    setCurrentPath(path);
+    if (typeof window !== "undefined" && window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
+    }
+  };
 
   useEffect(() => {
     if (typeof localStorage === "undefined") return;
     if (tokens?.accessToken) {
       localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
+      if (window.location.pathname !== "/tasks") {
+        window.history.pushState({}, "", "/tasks");
+      }
     } else {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
     }
@@ -72,9 +112,12 @@ export default function TodoPage() {
       // no body
     }
     if (!res.ok) {
-      const msg =
-        body?.message || body?.error || `Request failed (${res.status})`;
-      throw new Error(msg);
+      const errObj = new Error(
+        body?.message || body?.error || `Request failed (${res.status})`
+      );
+      errObj.response = body;
+      errObj.status = res.status;
+      throw errObj;
     }
     return body;
   }
@@ -102,7 +145,7 @@ export default function TodoPage() {
         body: JSON.stringify({ username, email: email.trim(), password }),
       });
       clearAuthFields();
-      setScreen("signin");
+      navigateTo("signin", "/signin");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -128,9 +171,23 @@ export default function TodoPage() {
       if (!t.accessToken) throw new Error("No access token in response");
       setTokens(t);
       clearAuthFields();
-      setScreen("tasks");
+      navigateTo("tasks", "/tasks");
     } catch (err) {
-      setError(err.message);
+      const msg = err?.response?.message || err?.message || "";
+      if (msg.toLowerCase().includes("incorrect password")) {
+        setToastMessage("Incorrect Password");
+        setError("");
+      } else if (
+        msg.toLowerCase().includes("invalid email") ||
+        msg.toLowerCase().includes("invalid email or password") ||
+        err?.response?.status === 400
+      ) {
+        setToastMessage("Account does not exist. Please sign up first.");
+        setError("");
+        navigateTo("signup", "/signup");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -172,7 +229,7 @@ export default function TodoPage() {
           priority: newPriority || null,
           dueDate: toIsoOrNull(newDueDate),
           displayOrder: tasks.length + 1,
-          completedAt: toIsoOrNull(newCompletedAt),
+          completedAt: null,
         }),
       });
       setNewTitle("");
@@ -180,7 +237,6 @@ export default function TodoPage() {
       setNewPriority("");
       setNewStatus("");
       setNewDueDate("");
-      setNewCompletedAt("");
       setShowComposer(false);
       fetchTasks();
     } catch (err) {
@@ -190,10 +246,30 @@ export default function TodoPage() {
     }
   }
 
+  async function handleUpdateTask(taskId, updatedTask) {
+    if (!taskId) return;
+    
+    // Optimistic UI update
+    setTasks((prevTasks) =>
+      prevTasks.map((t) => (getTaskId(t) === taskId ? { ...t, ...updatedTask } : t))
+    );
+
+    try {
+      await callApi(`/api/v1/task/update/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify(taskUpdatePayload(updatedTask)),
+      });
+      fetchTasks();
+    } catch (err) {
+      setError(err.message);
+      fetchTasks();
+    }
+  }
+
   function handleLogout() {
     setTokens(null);
     setTasks([]);
-    setScreen("signin");
+    navigateTo("signin", "/signin");
   }
 
   async function handleReorderTask(activeId, overId) {
@@ -245,20 +321,13 @@ export default function TodoPage() {
 
   return (
     <div className="min-h-screen w-full flex justify-center bg-[#F8FAFC] text-[#111827]">
+      <Toast message={toastMessage} onClose={() => setToastMessage("")} />
       <div className="w-full max-w-md flex flex-col min-h-screen">
         <Header
           screen={screen}
           onLogout={handleLogout}
           loggedIn={!!tokens}
         />
-
-        {/* <div className="px-5 pt-3">
-          <BaseUrlField
-            baseUrl={baseUrl}
-            setBaseUrl={setBaseUrl}
-            disabled={loading}
-          />
-        </div> */}
 
         {error && (
           <div className="mx-5 mt-3 flex items-start gap-2 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/10 px-3 py-2 text-sm text-[#B91C1C]">
@@ -280,7 +349,7 @@ export default function TodoPage() {
               onSwitch={() => {
                 setError("");
                 clearAuthFields();
-                setScreen("signup");
+                navigateTo("signup", "/signup");
               }}
             />
           )}
@@ -299,7 +368,7 @@ export default function TodoPage() {
               onSwitch={() => {
                 setError("");
                 clearAuthFields();
-                setScreen("signin");
+                navigateTo("signin", "/signin");
               }}
             />
           )}
@@ -321,10 +390,9 @@ export default function TodoPage() {
               setNewStatus={setNewStatus}
               newDueDate={newDueDate}
               setNewDueDate={setNewDueDate}
-              newCompletedAt={newCompletedAt}
-              setNewCompletedAt={setNewCompletedAt}
               onCreate={handleCreateTask}
               onReorder={handleReorderTask}
+              onUpdateTask={handleUpdateTask}
             />
           )}
         </div>

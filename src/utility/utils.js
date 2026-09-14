@@ -39,15 +39,25 @@ export function getTaskId(task) {
   return task.id ?? task.taskId ?? task._id ?? task.uuid;
 }
 
+export function toCamelCase(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function taskUpdatePayload(task, displayOrder) {
+  const isComplete = task.status === "COMPLETE";
   return {
     title: task.title ?? "",
     description: task.description ?? "",
     status: task.status || null,
     priority: task.priority || null,
     dueDate: task.dueDate ?? null,
-    displayOrder,
-    completedAt: task.completedAt ?? null,
+    displayOrder: displayOrder ?? task.displayOrder ?? 0,
+    completedAt: isComplete ? (task.completedAt ?? new Date().toISOString()) : null,
   };
 }
 
