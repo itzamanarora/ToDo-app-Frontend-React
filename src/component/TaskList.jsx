@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Circle,
   Flag,
   GripVertical,
@@ -19,6 +21,7 @@ import {
   priorityTone,
   sortTasksByDisplayOrder,
   statusTone,
+  toCamelCase,
 } from "../utility/utils";
 
 export function TaskList({
@@ -46,6 +49,11 @@ export function TaskList({
 }) {
   const orderedTasks = sortTasksByDisplayOrder(tasks);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
+
+  const toggleExpand = (taskId) => {
+    setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -134,7 +142,7 @@ export function TaskList({
                 <option value="">No status</option>
                 {STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {toCamelCase(status)}
                   </option>
                 ))}
               </select>
@@ -148,20 +156,13 @@ export function TaskList({
               className="input"
             />
           </Field>
-          <Field label="Completed at">
-            <input
-              type="datetime-local"
-              value={newCompletedAt}
-              onChange={(e) => setNewCompletedAt(e.target.value)}
-              className="input"
-            />
-          </Field>
           <div className="flex gap-2 mt-1">
             <button
               type="submit"
-              className="flex-1 rounded-md bg-[#2563EB] px-3 py-2 text-sm font-medium text-[#FFFFFF] hover:bg-[#3B82F6] transition-colors"
+              disabled={loading}
+              className="flex-1 rounded-md bg-[#2563EB] px-3 py-2 text-sm font-medium text-[#FFFFFF] hover:bg-[#3B82F6] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Add task
+              {loading ? "Saving…" : "Save task"}
             </button>
             <button
               type="button"

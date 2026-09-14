@@ -40,15 +40,25 @@ export function getTaskId(task) {
   return task.id ?? task.taskId ?? task._id ?? task.uuid;
 }
 
+export function toCamelCase(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function taskUpdatePayload(task, displayOrder) {
+  const isComplete = task.status === "COMPLETE";
   return {
     title: task.title ?? "",
     description: task.description ?? "",
     status: task.status || null,
     priority: task.priority || null,
     dueDate: task.dueDate ?? null,
-    displayOrder,
-    completedAt: task.completedAt ?? null,
+    displayOrder: displayOrder ?? task.displayOrder ?? 0,
+    completedAt: isComplete ? (task.completedAt ?? new Date().toISOString()) : null,
   };
 }
 
@@ -65,4 +75,26 @@ export function statusTone(status) {
   if (status === "PENDING") return "medium";
   if (status === "CANCELLED") return "cancelled";
   return "neutral";
+}
+
+export function validateAuth({ email, password }) {
+  if (!email || !email.trim()) {
+    return "Email is required.";
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return "Please enter a valid email address.";
+  }
+
+  if (!password) {
+    return "Password is required.";
+  }
+  if (password.length < 8) {
+    return "Password must be at least 8 characters long.";
+  }
+  if (password.length > 128) {
+    return "Password must not exceed 128 characters.";
+  }
+
+  return null;
 }
