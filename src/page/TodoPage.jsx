@@ -71,6 +71,12 @@ export default function TodoPage() {
       // no body
     }
     if (!res.ok) {
+      if (res.status === 403 || res.status === 401 || !tokens?.accessToken) {
+        setTokens(null);
+        setTasks([]);
+        setScreen("signin");
+        setError("Session expired or unauthorized. Please sign in again.");
+      }
       const msg =
         body?.message || body?.error || `Request failed (${res.status})`;
       throw new Error(msg);
@@ -277,13 +283,13 @@ export default function TodoPage() {
           loggedIn={!!tokens}
         />
 
-        <div className="px-5 pt-3">
+        {/* <div className="px-5 pt-3">
           <BaseUrlField
             baseUrl={baseUrl}
             setBaseUrl={setBaseUrl}
             disabled={loading}
           />
-        </div>
+        </div> */}
 
         {error && (
           <div className="mx-5 mt-3 flex items-start gap-2 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/10 px-3 py-2 text-sm text-[#B91C1C]">
