@@ -179,6 +179,42 @@ export default function TodoPage() {
     }
   }
 
+  async function handleUpdateTask(taskId, updatedTask) {
+    if (!taskId) return;
+
+    setTasks((prevTasks) =>
+      prevTasks.map((t) => (getTaskId(t) === taskId ? { ...t, ...updatedTask } : t))
+    );
+
+    try {
+      await callApi(`/api/v1/task/update/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify(taskUpdatePayload(updatedTask)),
+      });
+      fetchTasks();
+    } catch (err) {
+      setError(err.message);
+      fetchTasks();
+    }
+  }
+
+  async function handleDeleteTask(taskId) {
+    if (!taskId) return;
+
+    setTasks((prevTasks) => prevTasks.filter((t) => getTaskId(t) !== taskId));
+
+    try {
+      await callApi(`/api/v1/task/delete/${taskId}`, {
+        method: "DELETE",
+      });
+      setToastMessage("Task deleted successfully");
+      fetchTasks();
+    } catch (err) {
+      setError(err.message);
+      fetchTasks();
+    }
+  }
+
   function handleLogout() {
     setTokens(null);
     setTasks([]);
@@ -314,6 +350,8 @@ export default function TodoPage() {
               setNewCompletedAt={setNewCompletedAt}
               onCreate={handleCreateTask}
               onReorder={handleReorderTask}
+              onUpdateTask={handleUpdateTask}
+              onDeleteTask={handleDeleteTask}
             />
           )}
         </div>

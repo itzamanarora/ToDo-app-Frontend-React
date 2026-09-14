@@ -1,4 +1,5 @@
-export const DEFAULT_BASE_URL = "http://192.168.1.49:8000";
+export const DEFAULT_BASE_URL = "https://todo-app-backend-spring-boot.onrender.com";
+// export const DEFAULT_BASE_URL = "http://localhost:8080";
 export const TOKEN_STORAGE_KEY = "todo-app.tokens";
 export const PRIORITIES = ["HIGH", "MEDIUM", "LOW"];
 export const STATUSES = ["TODO", "DELAYED", "PENDING", "COMPLETE", "CANCELLED"];
