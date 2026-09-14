@@ -12,6 +12,7 @@ import {
   sortTasksByDisplayOrder,
   taskUpdatePayload,
   toIsoOrNull,
+  validateAuth,
 } from "../utility/utils";
 
 export default function TodoPage() {
@@ -89,11 +90,16 @@ export default function TodoPage() {
   async function handleSignup(e) {
     e.preventDefault();
     setError("");
+    const validationError = validateAuth({ email, password });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setLoading(true);
     try {
       await callApi("/api/v1/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email: email.trim(), password }),
       });
       clearAuthFields();
       setScreen("signin");
@@ -107,11 +113,16 @@ export default function TodoPage() {
   async function handleSignin(e) {
     e.preventDefault();
     setError("");
+    const validationError = validateAuth({ email, password });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setLoading(true);
     try {
       const body = await callApi("/api/v1/auth/signin", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       const t = extractTokens(body);
       if (!t.accessToken) throw new Error("No access token in response");
@@ -241,13 +252,13 @@ export default function TodoPage() {
           loggedIn={!!tokens}
         />
 
-        <div className="px-5 pt-3">
+        {/* <div className="px-5 pt-3">
           <BaseUrlField
             baseUrl={baseUrl}
             setBaseUrl={setBaseUrl}
             disabled={loading}
           />
-        </div>
+        </div> */}
 
         {error && (
           <div className="mx-5 mt-3 flex items-start gap-2 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/10 px-3 py-2 text-sm text-[#B91C1C]">

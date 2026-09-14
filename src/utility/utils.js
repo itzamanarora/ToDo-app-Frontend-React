@@ -65,3 +65,26 @@ export function statusTone(status) {
   if (status === "CANCELLED") return "cancelled";
   return "neutral";
 }
+
+export function validateAuth({ email, password }) {
+  if (!email || !email.trim()) {
+    return "Email is required.";
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return "Please enter a valid email address.";
+  }
+
+  if (!password) {
+    return "Password is required.";
+  }
+  if (password.length < 8) {
+    return "Password must be at least 8 characters long.";
+  }
+  if (password.length > 128) {
+    return "Password must not exceed 128 characters.";
+  }
+
+  return null;
+}
+
