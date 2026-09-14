@@ -85,8 +85,16 @@ export default function TodoPage() {
       }
     } else {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      // Redirect to signin if user is trying to access protected screen/route without token
+      if (screen === "tasks" || window.location.pathname === "/tasks") {
+        setScreen("signin");
+        setCurrentPath("/signin");
+        if (window.location.pathname !== "/signin" && window.location.pathname !== "/signup") {
+          window.history.pushState({}, "", "/signin");
+        }
+      }
     }
-  }, [tokens]);
+  }, [tokens, screen]);
 
   const clearAuthFields = () => {
     setUsername("");
@@ -112,6 +120,12 @@ export default function TodoPage() {
       // no body
     }
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        setTokens(null);
+        setTasks([]);
+        setToastMessage("Session expired. Please sign in again.");
+        navigateTo("signin", "/signin");
+      }
       const errObj = new Error(
         body?.message || body?.error || `Request failed (${res.status})`
       );
