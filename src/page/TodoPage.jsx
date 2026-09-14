@@ -120,8 +120,10 @@ export default function TodoPage() {
         body: JSON.stringify({ email, password }),
       });
       const t = extractTokens(body);
+      const data = body?.data || body;
+      const returnedUsername = data?.username || data?.user?.username || "";
       if (!t.accessToken) throw new Error("No access token in response");
-      setTokens(t);
+      setTokens({...t, username: returnedUsername});
       clearAuthFields();
       setScreen("tasks");
     } catch (err) {
@@ -281,6 +283,7 @@ export default function TodoPage() {
           screen={screen}
           onLogout={handleLogout}
           loggedIn={!!tokens}
+          username={tokens?.username}
         />
 
         {/* <div className="px-5 pt-3">
